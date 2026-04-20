@@ -16,11 +16,10 @@ RUN mkdir -p /src/build && cd /src/build && cmake -DCMAKE_C_COMPILER=clang .. &&
     cp /src/build/include/msgpack/sysdep.h /src/include/msgpack/sysdep.h && \
     cp /src/build/include/msgpack/pack_template.h /src/include/msgpack/pack_template.h
 
-# Compile all msgpack-c sources + fuzz target into one static binary
-RUN clang++ -std=c++11 \
-    -fsanitize=fuzzer,address -g \
+# Compile all msgpack-c sources + fuzz target into one binary
+RUN clang -fsanitize=fuzzer,address -g \
     -I/src/include \
-    /src/fuzz/fuzz_target.cpp \
+    /src/fuzz/fuzz_target.c \
     /src/src/objectc.c \
     /src/src/unpack.c \
     /src/src/version.c \

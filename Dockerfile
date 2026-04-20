@@ -11,14 +11,15 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /src
 COPY . /src
 
-# cmake configure generates sysdep.h and pack_template.h (required headers not in the repo)
-RUN mkdir -p /src/build && cd /src/build && cmake -DCMAKE_C_COMPILER=clang ..
+# cmake configure generates sysdep.h and pack_template.h, then copy them where the source expects them
+RUN mkdir -p /src/build && cd /src/build && cmake -DCMAKE_C_COMPILER=clang .. && \
+    cp /src/build/include/msgpack/sysdep.h /src/include/msgpack/sysdep.h && \
+    cp /src/build/include/msgpack/pack_template.h /src/include/msgpack/pack_template.h
 
 # Compile all msgpack-c sources + fuzz target into one static binary
 RUN clang++ -std=c++11 \
     -fsanitize=fuzzer,address -g \
     -I/src/include \
-    -I/src/build/include \
     /src/fuzz/fuzz_target.cpp \
     /src/src/objectc.c \
     /src/src/unpack.c \

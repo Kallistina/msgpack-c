@@ -28,4 +28,6 @@ RUN clang++ -std=c++11 \
     /src/src/zone.c \
     -o /fuzz_target
 
+ENV ASAN_OPTIONS=allocator_may_return_null=1
+
 CMD ["/bin/sh", "-c", "mkdir -p /fuzzing-output && /fuzz_target -max_total_time=600 -rss_limit_mb=2048 -artifact_prefix=/fuzzing-output/ /fuzzing-output/ 2>&1 | tee /fuzzing-output/fuzz.log; exit 0"]

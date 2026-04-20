@@ -19,7 +19,8 @@ RUN mkdir build && cd build && \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           .. && \
     make -j$(nproc) && \
-    make install
+    make install && \
+    ldconfig
 
 # Compile the fuzzer binary, linking in the fuzzer runtime
 RUN clang++ -std=c++11 \
@@ -30,9 +31,4 @@ RUN clang++ -std=c++11 \
     -lmsgpack-c \
     -o /fuzz_target
 
-CMD mkdir -p /fuzzing-output && \
-    /fuzz_target \
-        -max_total_time=600 \
-        -artifact_prefix=/fuzzing-output/ \
-        /fuzzing-output/ \
-        2>&1 | tee /fuzzing-output/fuzz.log; exit 0
+CMD ["/bin/sh", "-c", "mkdir -p /fuzzing-output && /fuzz_target -max_total_time=600 -artifact_prefix=/fuzzing-output/ /fuzzing-output/ 2>&1 | tee /fuzzing-output/fuzz.log; exit 0"]

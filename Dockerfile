@@ -4,15 +4,21 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     clang \
+    cmake \
+    make \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 COPY . /src
 
-# Compile msgpack-c sources + fuzz target together in one step — no shared library needed
+# cmake configure generates sysdep.h and pack_template.h (required headers not in the repo)
+RUN mkdir -p /src/build && cd /src/build && cmake -DCMAKE_C_COMPILER=clang ..
+
+# Compile all msgpack-c sources + fuzz target into one static binary
 RUN clang++ -std=c++11 \
     -fsanitize=fuzzer,address -g \
     -I/src/include \
+    -I/src/build/include \
     /src/fuzz/fuzz_target.cpp \
     /src/src/objectc.c \
     /src/src/unpack.c \

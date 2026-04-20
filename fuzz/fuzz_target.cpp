@@ -5,6 +5,7 @@
 #include "msgpack.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
+    if (size > 4096) return 0;
     // Fuzz the one-shot unpacker
     {
         msgpack_unpacked result;

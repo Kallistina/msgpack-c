@@ -1,13 +1,15 @@
 /*
  * LibFuzzer harness for msgpack-c (C library)
  *
- * Target: msgpack_unpack_next() - the main deserialization function.
- * Random bytes are fed into it and AddressSanitizer detects any memory bugs.
+ * Targets: msgpack_unpack_next() and msgpack_unpacker (streaming unpacker).
+ * Random bytes are fed into both and AddressSanitizer detects any memory bugs.
  *
  * Strategy:
- * - msgpack_unpack_next() was chosen as the target because it is the core
- *   entry point: any malformed message passes through here first.
- * - It is called in a loop to handle inputs containing multiple packed objects.
+ * - msgpack_unpack_next() is the core one-shot deserializer.
+ * - msgpack_unpacker processes data incrementally, maintaining internal state
+ *   across calls — a different code path with its own state machine and
+ *   buffer management, where different bugs may hide.
+ * - Both are exercised on every input to maximize code coverage.
  * - The C API is used directly since the library itself is written in C.
  *
  * Observations during development:
@@ -33,11 +35,31 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     /* 0xdd (array32) and 0xdf (map32) claim up to 4 billion elements and OOM the fuzzer */
     if (memchr(data, 0xdd, size) || memchr(data, 0xdf, size)) return 0;
 
-    msgpack_unpacked msg;
-    msgpack_unpacked_init(&msg);
-    size_t offset = 0;
-    while (msgpack_unpack_next(&msg, (const char *)data, size, &offset) == MSGPACK_UNPACK_SUCCESS) {}
-    msgpack_unpacked_destroy(&msg);
+    /* one-shot unpacker */
+    {
+        msgpack_unpacked msg;
+        msgpack_unpacked_init(&msg);
+        size_t offset = 0;
+        while (msgpack_unpack_next(&msg, (const char *)data, size, &offset) == MSGPACK_UNPACK_SUCCESS) {}
+        msgpack_unpacked_destroy(&msg);
+    }
+
+    /* streaming unpacker — feeds data in chunks and maintains internal state */
+    {
+        msgpack_unpacker pac;
+        if (msgpack_unpacker_init(&pac, 64)) {
+            if (msgpack_unpacker_buffer_capacity(&pac) < size)
+                msgpack_unpacker_reserve_buffer(&pac, size);
+            memcpy(msgpack_unpacker_buffer(&pac), data, size);
+            msgpack_unpacker_buffer_consumed(&pac, size);
+
+            msgpack_unpacked result;
+            msgpack_unpacked_init(&result);
+            while (msgpack_unpacker_next(&pac, &result) == MSGPACK_UNPACK_SUCCESS) {}
+            msgpack_unpacked_destroy(&result);
+            msgpack_unpacker_destroy(&pac);
+        }
+    }
 
     return 0;
 }

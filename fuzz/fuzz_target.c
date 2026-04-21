@@ -32,8 +32,6 @@
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     if (size > 4096) return 0; /* ignore very large inputs */
 
-    /* 0xdd (array32) and 0xdf (map32) claim up to 4 billion elements and OOM the fuzzer */
-    if (memchr(data, 0xdd, size) || memchr(data, 0xdf, size)) return 0;
 
     /* one-shot unpacker */
     {
